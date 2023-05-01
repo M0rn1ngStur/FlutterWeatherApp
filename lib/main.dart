@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'nav.dart';
+import 'package:path_provider/path_provider.dart';
 
 Future<WeatherItem> fetchWeather(String city) async {
   final response = await http.get(Uri.parse(
@@ -43,10 +46,47 @@ class WeatherItem {
   }
 }
 
-void main() => runApp(const MyApp());
+class CityStorage {
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+
+    return directory.path;
+  }
+
+  Future<File> get _localFile async {
+    final path = await _localPath;
+    return File('$path/citysearches.txt');
+  }
+
+  Future<List<String>> readCitySearches() async {
+    try {
+      final file = await _localFile;
+
+      // Read the file
+      final contents = await file.readAsString();
+
+      return jsonDecode(contents);
+    } catch (e) {
+      // If encountering an error, return 0
+      return [];
+    }
+  }
+
+  Future<File> writeCitySearches(List<String> citySearches) async {
+    final file = await _localFile;
+    // Write the file
+    return file.writeAsString(jsonEncode(citySearches));
+  }
+}
+
+void main() => runApp(MyApp(
+      storage: CityStorage(),
+    ));
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.storage});
+
+  final CityStorage storage;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -56,18 +96,39 @@ class _MyAppState extends State<MyApp> {
   late Future<WeatherItem> currentWeather;
   String citySearch = "London";
   TextEditingController locationController = TextEditingController();
+  List<String> recentSearches = [];
 
   Future handleClick() async {
     setState(() {
       citySearch = locationController.text;
       currentWeather = fetchWeather(locationController.text);
+      addSearch(locationController.text);
     });
   }
 
   @override
   void initState() {
     super.initState();
+    widget.storage.readCitySearches().then((value) {
+      setState(() {
+        recentSearches = value;
+        if (value.isNotEmpty) {
+          currentWeather = fetchWeather(value.first);
+        }
+      });
+    });
     currentWeather = fetchWeather("London");
+  }
+
+  Future<File> addSearch(String cityName) {
+    setState(() {
+      if (!recentSearches.contains(cityName)) {
+        recentSearches.add(cityName);
+      }
+    });
+
+    // Write the variable as a string to the file.
+    return widget.storage.writeCitySearches(recentSearches);
   }
 
   @override
@@ -81,6 +142,14 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('WeatherApp'),
         ),
+        drawer: NavDrawer(
+            recentSearches: recentSearches,
+            setCity: (String cityName) {
+              setState(() {
+                citySearch = cityName;
+                currentWeather = fetchWeather(cityName);
+              });
+            }),
         body: Center(
             child: Column(
           children: [
@@ -94,11 +163,8 @@ class _MyAppState extends State<MyApp> {
                   )),
             ),
             Center(
-              child: Text(citySearch),
-            ),
-            Center(
               child: ElevatedButton(
-                child: Text("Tap on this"),
+                child: Text("Search"),
                 style: ElevatedButton.styleFrom(
                   primary: Colors.red,
                   elevation: 0,
@@ -106,14 +172,17 @@ class _MyAppState extends State<MyApp> {
                 onPressed: handleClick,
               ),
             ),
+            Center(
+              child: Text(citySearch),
+            ),
             FutureBuilder<WeatherItem>(
               future: currentWeather,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return Column(children: [
-                    Text('Temperatura:${snapshot.data!.tempC}'),
-                    Text('Odczuwalna temperatura:${snapshot.data!.feelslikeC}'),
-                    Text('Warunki pogodowe:${snapshot.data!.condition}'),
+                    Text('Temperature:${snapshot.data!.tempC}'),
+                    Text('Feels like:${snapshot.data!.feelslikeC}'),
+                    Text('Conditions:${snapshot.data!.condition}'),
                     Image.network('https:${snapshot.data!.conditionImage}'),
                   ]);
                 } else if (snapshot.hasError) {
