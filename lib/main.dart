@@ -148,6 +148,7 @@ class _MyAppState extends State<MyApp> {
               setState(() {
                 citySearch = cityName;
                 currentWeather = fetchWeather(cityName);
+                locationController.text = cityName;
               });
             }),
         body: Center(

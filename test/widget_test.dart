@@ -11,20 +11,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('Test search city name', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(
+      storage: CityStorage(),
+    ));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.enterText(find.byType(TextField), 'Cracow');
+    await tester.tap(find.byType(ElevatedButton));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
     await tester.pump();
+    // Verify that our counter starts at 0.
+    expect(find.text('Cracow'), findsOneWidget);
+    expect(find.text('London'), findsNothing);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'London');
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pump();
+    expect(find.text('Cracow'), findsNothing);
+    expect(find.text('London'), findsOneWidget);
+  });
+  testWidgets('Test search city name', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(MyApp(
+      storage: CityStorage(),
+    ));
+
+    await tester.enterText(find.byType(TextField), 'Cracow');
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'London');
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pump();
   });
 }
